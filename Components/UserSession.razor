@@ -1,0 +1,139 @@
+@using EventEase.Services
+@inject SessionStateService SessionState
+@inject NavigationManager Navigation
+
+<div class="user-session-container">
+    @if (SessionState.CurrentUser != null)
+    {
+        <div class="user-info">
+            <span class="welcome-text">
+                <i class="bi bi-person-circle"></i>
+                Welcome, @SessionState.CurrentUser.FullName
+            </span>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="Logout">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </button>
+        </div>
+        
+        <div class="session-timer" title="Session timeout in @GetRemainingMinutes() minutes">
+            <i class="bi bi-clock"></i>
+            <small>@GetRemainingMinutes():@GetRemainingSeconds().ToString("00")</small>
+        </div>
+    }
+    else
+    {
+        <div class="login-prompt">
+            <a href="/login" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-box-arrow-in-right"></i> Login
+            </a>
+        </div>
+    }
+</div>
+
+@code {
+    private System.Timers.Timer? _timer;
+    private int _remainingSeconds;
+    
+    protected override void OnInitialized()
+    {
+        SessionState.UserSessionChanged += OnUserSessionChanged;
+        StartTimer();
+    }
+    
+    private void OnUserSessionChanged(object? sender, UserSessionChangedEventArgs e)
+    {
+        StateHasChanged();
+        StartTimer();
+    }
+    
+    private void StartTimer()
+    {
+        _timer?.Stop();
+        _timer?.Dispose();
+        
+        if (SessionState.CurrentUser != null)
+        {
+            _timer = new System.Timers.Timer(1000);
+            _timer.Elapsed += (s, e) => UpdateRemainingTime();
+            _timer.Start();
+        }
+    }
+    
+    private void UpdateRemainingTime()
+    {
+        if (SessionState.CurrentUser != null)
+        {
+            var elapsed = DateTime.Now - SessionState.LastActivityTime;
+            var remaining = TimeSpan.FromMinutes(30) - elapsed;
+            _remainingSeconds = (int)remaining.TotalSeconds;
+            
+            if (_remainingSeconds <= 0)
+            {
+                _timer?.Stop();
+                Navigation.NavigateTo("/login?timeout=true", true);
+            }
+            else
+            {
+                InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+    
+    private int GetRemainingMinutes()
+    {
+        return Math.Max(0, _remainingSeconds / 60);
+    }
+    
+    private int GetRemainingSeconds()
+    {
+        return Math.Max(0, _remainingSeconds % 60);
+    }
+    
+    private async Task Logout()
+    {
+        await SessionState.LogoutAsync();
+        Navigation.NavigateTo("/");
+    }
+    
+    public void Dispose()
+    {
+        _timer?.Dispose();
+        SessionState.UserSessionChanged -= OnUserSessionChanged;
+    }
+}
+
+<style>
+    .user-session-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .welcome-text {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #333;
+    }
+    
+    .session-timer {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    .session-timer i {
+        margin-right: 3px;
+        color: #007bff;
+    }
+    
+    .login-prompt {
+        display: flex;
+        align-items: center;
+    }
+</style>

@@ -1,5 +1,7 @@
+using EventEase.Middleware;
 using EventEase.Services;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using Microsoft.AspNetCore.Components.Web;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,7 +9,15 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<EventService>(); // Register EventService
+
+// 注册自定义服务
+builder.Services.AddSingleton<EventService>();
+builder.Services.AddScoped<AttendanceTrackerService>();
+builder.Services.AddScoped<SessionStateService>();
+builder.Services.AddScoped<ProtectedLocalStorage>();
+
+// 添加日志服务
+builder.Services.AddLogging();
 
 var app = builder.Build();
 
@@ -20,6 +30,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseRouting();
 

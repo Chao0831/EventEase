@@ -1,0 +1,70 @@
+<div class="modal @(showModal ? "show d-block" : "")" tabindex="-1" 
+     style="@(showModal ? "background-color: rgba(0,0,0,0.5);" : "")">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-check-circle"></i> Registration Successful!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <i class="bi bi-calendar-check text-success" style="font-size: 4rem;"></i>
+                </div>
+                
+                <p>Thank you for registering for <strong>@EventName</strong>!</p>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-envelope"></i>
+                    A confirmation email has been sent to <strong>@Email</strong>.
+                </div>
+                
+                <div class="mt-3">
+                    <h6>Next Steps:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-check-circle text-success"></i> Check your email for confirmation</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Add the event to your calendar</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Prepare any required materials</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" @onclick="ViewMyRegistrations">
+                    <i class="bi bi-list"></i> View My Registrations
+                </button>
+                <button class="btn btn-secondary" @onclick="Close">
+                    <i class="bi bi-x-circle"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool showModal { get; set; }
+    
+    [Parameter]
+    public string EventName { get; set; } = string.Empty;
+    
+    [Parameter]
+    public string Email { get; set; } = string.Empty;
+    
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+    
+    [Parameter]
+    public EventCallback OnViewRegistrations { get; set; }
+    
+    private async Task Close()
+    {
+        showModal = false;
+        await OnClose.InvokeAsync();
+    }
+    
+    private async Task ViewMyRegistrations()
+    {
+        await OnViewRegistrations.InvokeAsync();
+    }
+}

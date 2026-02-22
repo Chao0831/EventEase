@@ -3,70 +3,154 @@
 @using EventEase.Services
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components.Forms
+@using System.Text
 @inject EventService EventService
+@inject AttendanceTrackerService AttendanceTracker
+@inject SessionStateService SessionState
 @inject NavigationManager Navigation
+@inject ILogger<Registration> Logger
 
 <div class="container">
     <div class="row">
         <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header">
-                    <h2>Event Registration</h2>
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-calendar-check"></i> 
+                        Event Registration
+                    </h4>
                 </div>
                 <div class="card-body">
                     @if (currentEvent != null)
                     {
-                        <div class="event-summary mb-4">
-                            <h5>Event: @currentEvent.Name</h5>
-                            <p><strong>Date:</strong> @currentEvent.Date.ToString("MMMM dd, yyyy")</p>
-                            <p><strong>Location:</strong> @currentEvent.Location</p>
-                            <p><strong>Price:</strong> @String.Format("{0:C}", currentEvent.Price)</p>
+                        <div class="alert @(currentEvent.CanRegister ? "alert-success" : "alert-warning")">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>@currentEvent.Name</strong><br />
+                                    <small>@currentEvent.Date.ToString("MMMM dd, yyyy") at @currentEvent.Location</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge @(currentEvent.CanRegister ? "bg-success" : "bg-danger")">
+                                        @currentEvent.AvailableSpots spots available
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-
-                        <EditForm Model="@registration" OnValidSubmit="@HandleValidSubmit">
-                            <DataAnnotationsValidator />
-                            <ValidationSummary class="text-danger" />
-
-                            <div class="mb-3">
-                                <label for="fullName" class="form-label">Full Name</label>
-                                <InputText id="fullName" class="form-control" @bind-Value="registration.FullName" />
-                                <ValidationMessage For="@(() => registration.FullName)" />
+                        
+                        @if (registrationResult != null && !registrationResult.IsSuccess)
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                @registrationResult.Message
+                                <button type="button" class="btn-close" @onclick="ClearResult"></button>
                             </div>
-
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email Address</label>
-                                <InputText id="email" class="form-control" @bind-Value="registration.Email" />
-                                <ValidationMessage For="@(() => registration.Email)" />
+                        }
+                        
+                        @if (!currentEvent.CanRegister)
+                        {
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Sorry, this event is fully booked or no longer accepting registrations.
                             </div>
-
-                            <div class="mb-3">
-                                <label for="phone" class="form-label">Phone Number</label>
-                                <InputText id="phone" class="form-control" @bind-Value="registration.Phone" />
-                                <ValidationMessage For="@(() => registration.Phone)" />
+                            <a href="/event/@Id" class="btn btn-secondary">Back to Event</a>
+                        }
+                        else if (SessionState.CurrentUser == null)
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                Please <a href="/login">login</a> to register for this event.
                             </div>
+                        }
+                        else
+                        {
+                            <EditForm Model="@registrationModel" OnValidSubmit="@HandleValidSubmit">
+                                <DataAnnotationsValidator />
+                                <ValidationSummary class="text-danger" />
+                                
+                                <div class="mb-3">
+                                    <label for="fullName" class="form-label">Full Name *</label>
+                                    <InputText id="fullName" class="form-control" 
+                                              @bind-Value="registrationModel.FullName" 
+                                              placeholder="Enter your full name" />
+                                    <ValidationMessage For="@(() => registrationModel.FullName)" />
+                                </div>
 
-                            <div class="mb-3">
-                                <label for="numberOfAttendees" class="form-label">Number of Attendees</label>
-                                <InputNumber id="numberOfAttendees" class="form-control" @bind-Value="registration.NumberOfAttendees" />
-                                <ValidationMessage For="@(() => registration.NumberOfAttendees)" />
-                            </div>
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email Address *</label>
+                                    <InputText id="email" class="form-control" 
+                                              @bind-Value="registrationModel.Email" 
+                                              placeholder="Enter your email" />
+                                    <ValidationMessage For="@(() => registrationModel.Email)" />
+                                </div>
 
-                            <div class="mb-3">
-                                <label for="specialRequests" class="form-label">Special Requests</label>
-                                <InputTextArea id="specialRequests" class="form-control" @bind-Value="registration.SpecialRequests" />
-                            </div>
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Phone Number *</label>
+                                    <InputText id="phone" class="form-control" 
+                                              @bind-Value="registrationModel.Phone" 
+                                              placeholder="Enter your phone number" />
+                                    <ValidationMessage For="@(() => registrationModel.Phone)" />
+                                </div>
 
-                            <div class="mb-3">
-                                <button type="submit" class="btn btn-primary">Complete Registration</button>
-                                <a href="/event/@Id" class="btn btn-secondary">Cancel</a>
-                            </div>
-                        </EditForm>
+                                <div class="mb-3">
+                                    <label for="numberOfAttendees" class="form-label">Number of Attendees *</label>
+                                    <InputNumber id="numberOfAttendees" class="form-control" 
+                                                @bind-Value="registrationModel.NumberOfAttendees" 
+                                                min="1" max="@Math.Min(10, currentEvent.AvailableSpots)" />
+                                    <small class="text-muted">Maximum: @Math.Min(10, currentEvent.AvailableSpots)</small>
+                                    <ValidationMessage For="@(() => registrationModel.NumberOfAttendees)" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="specialRequests" class="form-label">Special Requests</label>
+                                    <InputTextArea id="specialRequests" class="form-control" 
+                                                  @bind-Value="registrationModel.SpecialRequests" 
+                                                  rows="3" 
+                                                  placeholder="Any special requirements or requests?" />
+                                    <ValidationMessage For="@(() => registrationModel.SpecialRequests)" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <InputCheckbox id="termsAccepted" class="form-check-input" 
+                                                      @bind-Value="termsAccepted" />
+                                        <label for="termsAccepted" class="form-check-label">
+                                            I agree to the <a href="/terms" target="_blank">terms and conditions</a> *
+                                        </label>
+                                    </div>
+                                    @if (!termsAccepted && submitted)
+                                    {
+                                        <div class="text-danger">You must accept the terms to register</div>
+                                    }
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <button type="submit" class="btn btn-primary" 
+                                            disabled="@isProcessing">
+                                        @if (isProcessing)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" 
+                                                  role="status" aria-hidden="true"></span>
+                                            <span>Processing...</span>
+                                        }
+                                        else
+                                        {
+                                            <span><i class="bi bi-check-circle"></i> Complete Registration</span>
+                                        }
+                                    </button>
+                                    <a href="/event/@Id" class="btn btn-secondary">
+                                        <i class="bi bi-x-circle"></i> Cancel
+                                    </a>
+                                </div>
+                            </EditForm>
+                        }
                     }
                     else
                     {
                         <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
                             Event not found.
                         </div>
+                        <a href="/events" class="btn btn-secondary">Back to Events</a>
                     }
                 </div>
             </div>
@@ -74,28 +158,196 @@
     </div>
 </div>
 
+@* 成功注册模态框 *@
+@if (showSuccessModal && registrationResult?.Registration != null)
+{
+    <div class="modal show d-block" tabindex="-1" 
+         style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-check-circle"></i> Registration Successful!
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseSuccessModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-calendar-check text-success" style="font-size: 4rem;"></i>
+                    </div>
+                    
+                    <p>Thank you for registering for <strong>@currentEvent?.Name</strong>!</p>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-envelope"></i>
+                        A confirmation email has been sent to <strong>@registrationModel.Email</strong>.
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6>Registration Details:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-person"></i> <strong>Name:</strong> @registrationModel.FullName</li>
+                            <li><i class="bi bi-people"></i> <strong>Attendees:</strong> @registrationModel.NumberOfAttendees</li>
+                            <li><i class="bi bi-ticket"></i> <strong>Registration ID:</strong> #@registrationResult.Registration.Id</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6>Next Steps:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check-circle text-success"></i> Check your email for confirmation</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Add the event to your calendar</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Prepare any required materials</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" @onclick="ViewMyRegistrations">
+                        <i class="bi bi-list"></i> View My Registrations
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CloseSuccessModal">
+                        <i class="bi bi-x-circle"></i> Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter]
     public int Id { get; set; }
 
     private Event? currentEvent;
-    private RegistrationModel registration = new();
+    private RegistrationModel registrationModel = new();  // 改名为 registrationModel 避免冲突
+    private bool termsAccepted;
+    private bool isProcessing;
+    private bool submitted;
+    
+    // 注册结果反馈
+    private RegistrationResult? registrationResult;
+    private bool showSuccessModal;
 
     protected override void OnInitialized()
     {
-        currentEvent = EventService.GetEventById(Id);
+        LoadEvent();
+        
+        // 如果用户已登录，预填信息
+        if (SessionState.CurrentUser != null)
+        {
+            registrationModel.FullName = SessionState.CurrentUser.FullName;
+            registrationModel.Email = SessionState.CurrentUser.Email;
+        }
     }
 
-    private void HandleValidSubmit()
+    private void LoadEvent()
     {
-        // In a real application, you would save the registration to a database
-        // For now, we'll just navigate to a success page
-        Navigation.NavigateTo($"/registration-success/{Id}");
+        currentEvent = EventService.GetEventById(Id);
+        if (currentEvent != null)
+        {
+            Logger.LogInformation("Loaded event: {EventName} for registration", currentEvent.Name);
+        }
     }
 
+    private async Task HandleValidSubmit()
+    {
+        submitted = true;
+        
+        // 验证条款接受
+        if (!termsAccepted)
+        {
+            return;
+        }
+        
+        // 验证活动是否可注册
+        if (currentEvent == null || !currentEvent.CanRegister)
+        {
+            registrationResult = RegistrationResult.CreateFailure("This event is no longer available for registration.");
+            return;
+        }
+        
+        // 验证参与人数不超过可用名额
+        if (registrationModel.NumberOfAttendees > currentEvent.AvailableSpots)
+        {
+            registrationResult = RegistrationResult.CreateFailure($"Only {currentEvent.AvailableSpots} spots available. Please adjust the number of attendees.");
+            return;
+        }
+        
+        try
+        {
+            isProcessing = true;
+            
+            // 创建注册记录 - 使用 Models.Registration 全名避免冲突
+            var newRegistration = new EventEase.Models.Registration
+            {
+                EventId = Id,
+                UserId = SessionState.CurrentUser?.Id ?? 0,
+                FullName = registrationModel.FullName,
+                Email = registrationModel.Email,
+                Phone = registrationModel.Phone,
+                NumberOfAttendees = registrationModel.NumberOfAttendees,
+                SpecialRequests = registrationModel.SpecialRequests,
+                RegistrationDate = DateTime.Now,
+                Status = RegistrationStatus.Confirmed
+            };
+            
+            // 保存注册
+            registrationResult = await AttendanceTracker.AddRegistration(newRegistration);
+            
+            if (registrationResult.IsSuccess)
+            {
+                // 更新活动参与人数
+                await EventService.UpdateEventAttendance(Id, registrationModel.NumberOfAttendees);
+                
+                Logger.LogInformation("Registration successful for {Email} to event {EventId}", 
+                    registrationModel.Email, Id);
+                
+                showSuccessModal = true;
+                
+                // 重置表单
+                registrationModel = new RegistrationModel();
+                termsAccepted = false;
+                submitted = false;
+            }
+            else
+            {
+                Logger.LogWarning("Registration failed: {Message}", registrationResult.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during registration process");
+            registrationResult = RegistrationResult.CreateFailure($"An unexpected error occurred: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void ClearResult()
+    {
+        registrationResult = null;
+    }
+
+    private void CloseSuccessModal()
+    {
+        showSuccessModal = false;
+        registrationResult = null;
+    }
+
+    private void ViewMyRegistrations()
+    {
+        showSuccessModal = false;
+        // 这里可以导航到用户注册历史页面
+        Navigation.NavigateTo("/my-registrations");
+    }
+
+    // 内部类用于表单绑定
     public class RegistrationModel
     {
         [Required(ErrorMessage = "Full name is required")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Full name must be between 2 and 100 characters")]
         public string FullName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Email is required")]
@@ -104,12 +356,14 @@
 
         [Required(ErrorMessage = "Phone number is required")]
         [Phone(ErrorMessage = "Invalid phone number")]
+        [RegularExpression(@"^[0-9\-\(\)\/\+\s]*$", ErrorMessage = "Invalid phone number format")]
         public string Phone { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Number of attendees is required")]
         [Range(1, 10, ErrorMessage = "Number of attendees must be between 1 and 10")]
         public int NumberOfAttendees { get; set; } = 1;
 
+        [StringLength(500, ErrorMessage = "Special requests cannot exceed 500 characters")]
         public string? SpecialRequests { get; set; }
     }
 }

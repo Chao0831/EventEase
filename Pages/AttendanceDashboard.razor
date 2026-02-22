@@ -1,0 +1,239 @@
+@page "/attendance/{EventId:int}"
+@using EventEase.Models
+@using EventEase.Services
+@using System.Text
+@inject EventService EventService
+@inject AttendanceTrackerService AttendanceTracker
+@inject NavigationManager Navigation
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>
+                <i class="bi bi-bar-chart"></i> 
+                Attendance Dashboard
+            </h2>
+        </div>
+    </div>
+    
+    @if (currentEvent != null)
+    {
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">@currentEvent.Name - Attendance Overview</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h3>@stats.TotalRegistrations</h3>
+                                        <small>Total Registrations</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body">
+                                        <h3>@stats.ConfirmedRegistrations</h3>
+                                        <small>Confirmed</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning">
+                                    <div class="card-body">
+                                        <h3>@stats.AttendedCount</h3>
+                                        <small>Attended</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body">
+                                        <h3>@stats.NoShowCount</h3>
+                                        <small>No Show</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col">
+                                <div class="progress" style="height: 30px;">
+                                    <div class="progress-bar bg-success" 
+                                         style="width: @(stats.AttendanceRate)%">
+                                        @stats.AttendanceRate.ToString("F1")% Attendance Rate
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card shadow">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Event Info</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Date:</strong> @currentEvent.Date.ToString("MMMM dd, yyyy")</p>
+                        <p><strong>Location:</strong> @currentEvent.Location</p>
+                        <p><strong>Capacity:</strong> @currentEvent.CurrentAttendees / @currentEvent.MaxAttendees</p>
+                        <p><strong>Available Spots:</strong> @currentEvent.AvailableSpots</p>
+                        <div class="progress mb-2">
+                            <div class="progress-bar" 
+                                 style="width: @((double)currentEvent.CurrentAttendees / currentEvent.MaxAttendees * 100)%">
+                                @((double)currentEvent.CurrentAttendees / currentEvent.MaxAttendees * 100).ToString("F0")% Full
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col">
+                <div class="card shadow">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Registration List</h5>
+                        <button class="btn btn-sm btn-light" @onclick="ExportToCsv">
+                            <i class="bi bi-download"></i> Export CSV
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @if (registrations.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Phone</th>
+                                            <th>Attendees</th>
+                                            <th>Registration Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var reg in registrations)
+                                        {
+                                            <tr>
+                                                <td>@reg.FullName</td>
+                                                <td>@reg.Email</td>
+                                                <td>@reg.Phone</td>
+                                                <td>@reg.NumberOfAttendees</td>
+                                                <td>@reg.RegistrationDate.ToString("MMM dd, yyyy")</td>
+                                                <td>
+                                                    <span class="badge @GetStatusClass(reg.Status)">
+                                                        @reg.Status
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <select class="form-select form-select-sm" 
+                                                            @onchange="@((e) => UpdateStatus(reg.Id, e.Value?.ToString() ?? ""))">
+                                                        <option value="">Change Status</option>
+                                                        <option value="Confirmed">Confirmed</option>
+                                                        <option value="Attended">Attended</option>
+                                                        <option value="NoShow">No Show</option>
+                                                        <option value="Cancelled">Cancelled</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                No registrations yet for this event.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            Event not found.
+        </div>
+    }
+    
+    <div class="row mt-3">
+        <div class="col">
+            <a href="/events" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Events
+            </a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int EventId { get; set; }
+    
+    private Event? currentEvent;
+    private List<EventEase.Models.Registration> registrations = new(); // 使用完全限定名
+    private EventAttendanceStats stats = new();
+    
+    protected override void OnInitialized()
+    {
+        LoadData();
+    }
+    
+    private void LoadData()
+    {
+        currentEvent = EventService.GetEventById(EventId);
+        if (currentEvent != null)
+        {
+            registrations = AttendanceTracker.GetRegistrationsForEvent(EventId);
+            stats = AttendanceTracker.GetEventStats(EventId);
+        }
+    }
+    
+    private string GetStatusClass(RegistrationStatus status)
+    {
+        return status switch
+        {
+            RegistrationStatus.Confirmed => "bg-primary",
+            RegistrationStatus.Attended => "bg-success",
+            RegistrationStatus.NoShow => "bg-danger",
+            RegistrationStatus.Cancelled => "bg-warning",
+            _ => "bg-secondary"
+        };
+    }
+    
+    private async Task UpdateStatus(int registrationId, string newStatus)
+    {
+        if (Enum.TryParse<RegistrationStatus>(newStatus, out var status))
+        {
+            await AttendanceTracker.UpdateRegistrationStatus(registrationId, status);
+            LoadData(); // 刷新数据
+        }
+    }
+    
+    private void ExportToCsv()
+    {
+        // CSV导出逻辑
+        var csv = new StringBuilder();
+        csv.AppendLine("Name,Email,Phone,Attendees,Registration Date,Status");
+        
+        foreach (var reg in registrations)
+        {
+            csv.AppendLine($"{reg.FullName},{reg.Email},{reg.Phone},{reg.NumberOfAttendees},{reg.RegistrationDate:yyyy-MM-dd},{reg.Status}");
+        }
+        
+        // 这里可以添加下载CSV文件的逻辑
+        // 为了简化，我们只是记录到控制台
+        Console.WriteLine(csv.ToString());
+    }
+}

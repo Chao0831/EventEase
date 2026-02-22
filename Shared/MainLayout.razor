@@ -1,15 +1,18 @@
 ﻿@inherits LayoutComponentBase
+@using EventEase.Components
 
-<div class="container">
-    <div class="row">
-        <div class="col-12">
-            <h1>EventEase</h1>
-            <hr />
-        </div>
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
     </div>
-    <div class="row">
-        <div class="col-12">
+
+    <main>
+        <div class="top-row px-4 d-flex justify-content-end">
+            <UserSession />
+        </div>
+
+        <article class="content px-4">
             @Body
-        </div>
-    </div>
+        </article>
+    </main>
 </div>
