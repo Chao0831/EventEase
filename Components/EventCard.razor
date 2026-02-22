@@ -1,0 +1,35 @@
+@* 在文件顶部添加using指令 *@
+@using EventEase.Models
+
+<div class="card event-card">
+    <div class="card-body">
+        <h5 class="card-title">@Event.Name</h5>
+        <div class="event-details">
+            <p class="card-text">
+                <i class="bi bi-calendar"></i>
+                <strong>Date:</strong> @Event.Date.ToString("MMMM dd, yyyy")
+            </p>
+            <p class="card-text">
+                <i class="bi bi-geo-alt"></i>
+                <strong>Location:</strong> @Event.Location
+            </p>
+            <p class="card-text">
+                <i class="bi bi-people"></i>
+                <strong>Max Attendees:</strong> @Event.MaxAttendees
+            </p>
+            <p class="card-text">
+                <i class="bi bi-tag"></i>
+                <strong>Price:</strong> @String.Format("{0:C}", Event.Price)
+            </p>
+        </div>
+        <div class="card-actions">
+            <a href="/event/@Event.Id" class="btn btn-primary">View Details</a>
+            <a href="/register/@Event.Id" class="btn btn-success">Register</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Event Event { get; set; } = new();
+}

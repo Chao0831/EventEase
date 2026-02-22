@@ -29,3 +29,4 @@ C:\Users\QCU1SGH\Desktop\Module4_Blazor_practice\EventEase\obj\Debug\net7.0\refi
 C:\Users\QCU1SGH\Desktop\Module4_Blazor_practice\EventEase\obj\Debug\net7.0\EventEase.pdb
 C:\Users\QCU1SGH\Desktop\Module4_Blazor_practice\EventEase\obj\Debug\net7.0\EventEase.genruntimeconfig.cache
 C:\Users\QCU1SGH\Desktop\Module4_Blazor_practice\EventEase\obj\Debug\net7.0\ref\EventEase.dll
+C:\Users\QCU1SGH\Desktop\Module4_Blazor_practice\EventEase\obj\Debug\net7.0\EventEase.sourcelink.json

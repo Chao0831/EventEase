@@ -1,0 +1,28 @@
+@page "/"
+@page "/events"
+@using EventEase.Models
+@using EventEase.Services
+@using EventEase.Components
+@inject EventService EventService
+
+<div class="container">
+    <h1 class="my-4">Upcoming Events</h1>
+    
+    <div class="row">
+        @foreach (var eventItem in events)
+        {
+            <div class="col-md-6 col-lg-4">
+                <EventCard Event="eventItem" />
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Event> events = new();
+
+    protected override void OnInitialized()
+    {
+        events = EventService.GetEvents();
+    }
+}

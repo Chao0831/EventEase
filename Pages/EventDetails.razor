@@ -1,0 +1,65 @@
+@page "/event/{Id:int}"
+@using EventEase.Models
+@using EventEase.Services
+@inject EventService EventService
+@inject NavigationManager Navigation
+
+<div class="container">
+    @if (currentEvent != null)
+    {
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>@currentEvent.Name</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><strong>Date:</strong></div>
+                            <div class="col-sm-9">@currentEvent.Date.ToString("MMMM dd, yyyy")</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><strong>Location:</strong></div>
+                            <div class="col-sm-9">@currentEvent.Location</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><strong>Description:</strong></div>
+                            <div class="col-sm-9">@currentEvent.Description</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><strong>Max Attendees:</strong></div>
+                            <div class="col-sm-9">@currentEvent.MaxAttendees</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><strong>Price:</strong></div>
+                            <div class="col-sm-9">@String.Format("{0:C}", currentEvent.Price)</div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="/register/@currentEvent.Id" class="btn btn-success">Register for this Event</a>
+                        <a href="/events" class="btn btn-secondary">Back to Events</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            Event not found.
+            <a href="/events" class="alert-link">Return to events list</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Event? currentEvent;
+
+    protected override void OnInitialized()
+    {
+        currentEvent = EventService.GetEventById(Id);
+    }
+}

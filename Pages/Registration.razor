@@ -1,0 +1,115 @@
+@page "/register/{Id:int}"
+@using EventEase.Models
+@using EventEase.Services
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@inject EventService EventService
+@inject NavigationManager Navigation
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Event Registration</h2>
+                </div>
+                <div class="card-body">
+                    @if (currentEvent != null)
+                    {
+                        <div class="event-summary mb-4">
+                            <h5>Event: @currentEvent.Name</h5>
+                            <p><strong>Date:</strong> @currentEvent.Date.ToString("MMMM dd, yyyy")</p>
+                            <p><strong>Location:</strong> @currentEvent.Location</p>
+                            <p><strong>Price:</strong> @String.Format("{0:C}", currentEvent.Price)</p>
+                        </div>
+
+                        <EditForm Model="@registration" OnValidSubmit="@HandleValidSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger" />
+
+                            <div class="mb-3">
+                                <label for="fullName" class="form-label">Full Name</label>
+                                <InputText id="fullName" class="form-control" @bind-Value="registration.FullName" />
+                                <ValidationMessage For="@(() => registration.FullName)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email Address</label>
+                                <InputText id="email" class="form-control" @bind-Value="registration.Email" />
+                                <ValidationMessage For="@(() => registration.Email)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Phone Number</label>
+                                <InputText id="phone" class="form-control" @bind-Value="registration.Phone" />
+                                <ValidationMessage For="@(() => registration.Phone)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="numberOfAttendees" class="form-label">Number of Attendees</label>
+                                <InputNumber id="numberOfAttendees" class="form-control" @bind-Value="registration.NumberOfAttendees" />
+                                <ValidationMessage For="@(() => registration.NumberOfAttendees)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="specialRequests" class="form-label">Special Requests</label>
+                                <InputTextArea id="specialRequests" class="form-control" @bind-Value="registration.SpecialRequests" />
+                            </div>
+
+                            <div class="mb-3">
+                                <button type="submit" class="btn btn-primary">Complete Registration</button>
+                                <a href="/event/@Id" class="btn btn-secondary">Cancel</a>
+                            </div>
+                        </EditForm>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            Event not found.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Event? currentEvent;
+    private RegistrationModel registration = new();
+
+    protected override void OnInitialized()
+    {
+        currentEvent = EventService.GetEventById(Id);
+    }
+
+    private void HandleValidSubmit()
+    {
+        // In a real application, you would save the registration to a database
+        // For now, we'll just navigate to a success page
+        Navigation.NavigateTo($"/registration-success/{Id}");
+    }
+
+    public class RegistrationModel
+    {
+        [Required(ErrorMessage = "Full name is required")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Phone number is required")]
+        [Phone(ErrorMessage = "Invalid phone number")]
+        public string Phone { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Number of attendees is required")]
+        [Range(1, 10, ErrorMessage = "Number of attendees must be between 1 and 10")]
+        public int NumberOfAttendees { get; set; } = 1;
+
+        public string? SpecialRequests { get; set; }
+    }
+}
