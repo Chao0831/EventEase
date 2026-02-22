@@ -10,7 +10,21 @@ namespace EventEase.Services
         private readonly ILogger<SessionStateService> _logger;
         
         // 当前会话的用户
-        public User? CurrentUser { get; private set; }
+        private User? _currentUser;
+        public User? CurrentUser 
+        { 
+            get => _currentUser;
+            private set
+            {
+                if (_currentUser != value)
+                {
+                    _currentUser = value;
+                    // 当用户改变时触发事件
+                    OnUserSessionChanged(new UserSessionChangedEventArgs(_currentUser, 
+                        _currentUser != null ? "LoggedIn" : "LoggedOut"));
+                }
+            }
+        }
         
         // 会话开始时间
         public DateTime SessionStartTime { get; private set; }
@@ -28,8 +42,17 @@ namespace EventEase.Services
         {
             _localStorage = localStorage;
             _logger = logger;
+        }
+        
+        // 初始化会话 - 在应用启动时调用
+        public async Task InitializeAsync()
+        {
+            await RestoreSessionFromStorage();
             SessionStartTime = DateTime.Now;
             LastActivityTime = DateTime.Now;
+            
+            _logger.LogInformation("Session initialized. CurrentUser: {User}", 
+                CurrentUser?.Username ?? "null");
         }
         
         // 用户登录
@@ -37,6 +60,8 @@ namespace EventEase.Services
         {
             try
             {
+                _logger.LogInformation("Login attempt for user: {Username}", username);
+                
                 // 在实际应用中，这里应该验证用户名和密码
                 // 这里使用模拟验证
                 if (username == "demo" && password == "password")
@@ -54,13 +79,15 @@ namespace EventEase.Services
                     SessionStartTime = DateTime.Now;
                     LastActivityTime = DateTime.Now;
                     
+                    _logger.LogInformation("Login successful for user: {Username}", username);
+                    
                     // 保存到本地存储
                     await SaveSessionToStorage();
                     
-                    OnUserSessionChanged(new UserSessionChangedEventArgs(CurrentUser, "LoggedIn"));
                     return true;
                 }
                 
+                _logger.LogWarning("Login failed for user: {Username}", username);
                 return false;
             }
             catch (Exception ex)
@@ -73,9 +100,9 @@ namespace EventEase.Services
         // 用户登出
         public async Task LogoutAsync()
         {
+            _logger.LogInformation("User logged out: {Username}", CurrentUser?.Username);
             CurrentUser = null;
             await ClearSessionFromStorage();
-            OnUserSessionChanged(new UserSessionChangedEventArgs(null, "LoggedOut"));
         }
         
         // 更新活动时间
@@ -93,7 +120,8 @@ namespace EventEase.Services
             // 检查是否超时
             if ((DateTime.Now - LastActivityTime).TotalMinutes > SessionTimeoutMinutes)
             {
-                _ = LogoutAsync(); // 异步登出
+                _logger.LogInformation("Session timeout for user: {Username}", CurrentUser.Username);
+                _ = Task.Run(async () => await LogoutAsync()); // 异步登出
                 return false;
             }
             
@@ -112,7 +140,9 @@ namespace EventEase.Services
                     LastActivityTime = LastActivityTime
                 };
                 
-                await _localStorage.SetAsync("userSession", JsonSerializer.Serialize(sessionData));
+                var json = JsonSerializer.Serialize(sessionData);
+                await _localStorage.SetAsync("userSession", json);
+                _logger.LogDebug("Session saved to storage for user: {Username}", CurrentUser.Username);
             }
         }
         
@@ -125,13 +155,14 @@ namespace EventEase.Services
                 if (result.Success && !string.IsNullOrEmpty(result.Value))
                 {
                     var sessionData = JsonSerializer.Deserialize<SessionData>(result.Value);
-                    if (sessionData != null)
+                    if (sessionData != null && sessionData.User != null)
                     {
                         CurrentUser = sessionData.User;
                         SessionStartTime = sessionData.SessionStartTime;
                         LastActivityTime = sessionData.LastActivityTime;
                         
-                        OnUserSessionChanged(new UserSessionChangedEventArgs(CurrentUser, "Restored"));
+                        _logger.LogInformation("Session restored for user: {Username}", CurrentUser?.Username);
+                        
                         return true;
                     }
                 }
@@ -148,10 +179,12 @@ namespace EventEase.Services
         private async Task ClearSessionFromStorage()
         {
             await _localStorage.DeleteAsync("userSession");
+            _logger.LogDebug("Session cleared from storage");
         }
         
         private void OnUserSessionChanged(UserSessionChangedEventArgs e)
         {
+            _logger.LogDebug("User session changed: {Action}", e.Action);
             UserSessionChanged?.Invoke(this, e);
         }
         

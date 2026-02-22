@@ -1,0 +1,109 @@
+@page "/session-test"
+@using EventEase.Services
+@inject SessionStateService SessionState
+@inject NavigationManager Navigation
+
+<div class="container mt-4">
+    <h2>Session Diagnostic Tool</h2>
+    
+    <div class="card mt-3">
+        <div class="card-header bg-primary text-white">
+            Current Session State
+        </div>
+        <div class="card-body">
+            <p><strong>Is Authenticated:</strong> 
+                <span class="badge @(SessionState.CurrentUser != null ? "bg-success" : "bg-danger")">
+                    @(SessionState.CurrentUser != null ? "Yes" : "No")
+                </span>
+            </p>
+            
+            @if (SessionState.CurrentUser != null)
+            {
+                <table class="table table-sm">
+                    <tr>
+                        <th>Username:</th>
+                        <td>@SessionState.CurrentUser.Username</td>
+                    </tr>
+                    <tr>
+                        <th>Full Name:</th>
+                        <td>@SessionState.CurrentUser.FullName</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>@SessionState.CurrentUser.Email</td>
+                    </tr>
+                    <tr>
+                        <th>Session Start:</th>
+                        <td>@SessionState.SessionStartTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    </tr>
+                    <tr>
+                        <th>Last Activity:</th>
+                        <td>@SessionState.LastActivityTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    </tr>
+                    <tr>
+                        <th>Session Valid:</th>
+                        <td>
+                            <span class="badge @(SessionState.IsSessionValid() ? "bg-success" : "bg-warning")">
+                                @(SessionState.IsSessionValid() ? "Yes" : "No")
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+            }
+        </div>
+    </div>
+    
+    <div class="mt-3 d-flex gap-2">
+        <button class="btn btn-primary" @onclick="Refresh">Refresh Page</button>
+        <button class="btn btn-info" @onclick="ForceStateHasChanged">Force StateHasChanged</button>
+        <button class="btn btn-warning" @onclick="TestStorage">Test Storage</button>
+        <a href="/" class="btn btn-secondary">Home</a>
+    </div>
+    
+    @if (!string.IsNullOrEmpty(diagnosticInfo))
+    {
+        <div class="mt-3">
+            <h5>Diagnostic Info:</h5>
+            <pre class="bg-light p-3 border rounded">@diagnosticInfo</pre>
+        </div>
+    }
+</div>
+
+@code {
+    private string diagnosticInfo = "";
+    
+    private void Refresh()
+    {
+        Navigation.NavigateTo("/session-test", true);
+    }
+    
+    private void ForceStateHasChanged()
+    {
+        StateHasChanged();
+        diagnosticInfo = $"StateHasChanged called at {DateTime.Now}";
+    }
+    
+    private async Task TestStorage()
+    {
+        try
+        {
+            diagnosticInfo = "Testing storage...\n";
+            
+            // 检查 localStorage 中的会话
+            diagnosticInfo += $"CurrentUser before restore: {SessionState.CurrentUser?.Username ?? "null"}\n";
+            
+            // 强制重新加载会话
+            var restored = await SessionState.RestoreSessionFromStorage();
+            
+            diagnosticInfo += $"Restore successful: {restored}\n";
+            diagnosticInfo += $"CurrentUser after restore: {SessionState.CurrentUser?.Username ?? "null"}\n";
+            diagnosticInfo += $"Session valid: {SessionState.IsSessionValid()}";
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            diagnosticInfo = $"Error: {ex.Message}\n{ex.StackTrace}";
+        }
+    }
+}

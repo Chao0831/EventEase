@@ -1,6 +1,7 @@
 @using EventEase.Services
 @inject SessionStateService SessionState
 @inject NavigationManager Navigation
+@implements IDisposable
 
 <div class="user-session-container">
     @if (SessionState.CurrentUser != null)
@@ -15,10 +16,13 @@
             </button>
         </div>
         
-        <div class="session-timer" title="Session timeout in @GetRemainingMinutes() minutes">
-            <i class="bi bi-clock"></i>
-            <small>@GetRemainingMinutes():@GetRemainingSeconds().ToString("00")</small>
-        </div>
+        @if (GetRemainingMinutes() < 5) @* 只有在剩余时间少于5分钟时才显示计时器 *@
+        {
+            <div class="session-timer" title="Session timeout in @GetRemainingMinutes() minutes">
+                <i class="bi bi-clock"></i>
+                <small>@GetRemainingMinutes():@GetRemainingSeconds().ToString("00")</small>
+            </div>
+        }
     }
     else
     {
@@ -36,30 +40,55 @@
     
     protected override void OnInitialized()
     {
+        // 订阅会话状态变化事件
         SessionState.UserSessionChanged += OnUserSessionChanged;
-        StartTimer();
+        
+        // 立即检查当前状态
+        CheckSessionAndStartTimer();
     }
     
     private void OnUserSessionChanged(object? sender, UserSessionChangedEventArgs e)
     {
-        StateHasChanged();
-        StartTimer();
+        // 强制组件重新渲染
+        InvokeAsync(() =>
+        {
+            StateHasChanged();
+            CheckSessionAndStartTimer();
+        });
+    }
+    
+    private void CheckSessionAndStartTimer()
+    {
+        if (SessionState.CurrentUser != null)
+        {
+            StartTimer();
+        }
+        else
+        {
+            StopTimer();
+        }
     }
     
     private void StartTimer()
     {
-        _timer?.Stop();
-        _timer?.Dispose();
+        StopTimer(); // 先停止现有计时器
         
-        if (SessionState.CurrentUser != null)
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += async (s, e) => await UpdateRemainingTime();
+        _timer.Start();
+    }
+    
+    private void StopTimer()
+    {
+        if (_timer != null)
         {
-            _timer = new System.Timers.Timer(1000);
-            _timer.Elapsed += (s, e) => UpdateRemainingTime();
-            _timer.Start();
+            _timer.Stop();
+            _timer.Dispose();
+            _timer = null;
         }
     }
     
-    private void UpdateRemainingTime()
+    private async Task UpdateRemainingTime()
     {
         if (SessionState.CurrentUser != null)
         {
@@ -69,13 +98,17 @@
             
             if (_remainingSeconds <= 0)
             {
-                _timer?.Stop();
-                Navigation.NavigateTo("/login?timeout=true", true);
+                StopTimer();
+                await InvokeAsync(() => Navigation.NavigateTo("/login?timeout=true", true));
             }
             else
             {
-                InvokeAsync(StateHasChanged);
+                await InvokeAsync(StateHasChanged);
             }
+        }
+        else
+        {
+            StopTimer();
         }
     }
     
@@ -92,12 +125,12 @@
     private async Task Logout()
     {
         await SessionState.LogoutAsync();
-        Navigation.NavigateTo("/");
+        Navigation.NavigateTo("/", true);
     }
     
     public void Dispose()
     {
-        _timer?.Dispose();
+        StopTimer();
         SessionState.UserSessionChanged -= OnUserSessionChanged;
     }
 }
@@ -123,13 +156,14 @@
     }
     
     .session-timer {
-        color: #666;
+        color: #dc3545;
         font-size: 0.9rem;
+        font-weight: bold;
     }
     
     .session-timer i {
         margin-right: 3px;
-        color: #007bff;
+        color: #dc3545;
     }
     
     .login-prompt {

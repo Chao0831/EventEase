@@ -4,6 +4,7 @@
 @using System.ComponentModel.DataAnnotations
 @inject SessionStateService SessionState
 @inject NavigationManager Navigation
+@inject ILogger<Login> Logger
 
 <div class="container mt-5">
     <div class="row justify-content-center">
@@ -98,6 +99,15 @@
     private string? errorMessage;
     private bool isLoggingIn;
     
+    protected override void OnInitialized()
+    {
+        // 如果已经登录，直接跳转到首页
+        if (SessionState.CurrentUser != null)
+        {
+            Navigation.NavigateTo("/", false);
+        }
+    }
+    
     private async Task HandleLogin()
     {
         try
@@ -112,7 +122,13 @@
             
             if (success)
             {
-                Navigation.NavigateTo("/", true);
+                Logger.LogInformation("Login successful, redirecting to home page");
+                
+                // 等待一小段时间确保状态更新
+                await Task.Delay(100);
+                
+                // 不强制刷新，让事件系统处理状态更新
+                Navigation.NavigateTo("/", false);
             }
             else
             {
@@ -121,6 +137,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Login failed");
             errorMessage = $"Login failed: {ex.Message}";
         }
         finally
